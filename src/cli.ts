@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Cli, z } from "incur";
+import { loadConfig } from "./config.js";
 import { resolveFromInvokeCwd } from "./invokeCwd.js";
 import { packageVersion } from "./packageVersion.js";
 import { listRunningDiffmaps } from "./registry.js";
@@ -260,6 +261,12 @@ const cli = Cli.create("product-doc", {
       return c.ok(result);
     },
   });
+
+const config = loadConfig();
+if (config instanceof Error) {
+  process.stderr.write(`Error: ${config.message}\n`);
+  process.exit(1);
+}
 
 await cli.serve(resolveUpdateArgv(process.argv.slice(2)), {
   exit: exitAfterTelemetry,
