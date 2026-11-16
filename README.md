@@ -154,7 +154,7 @@ Run `npx product-doc fixtures/sessions-in-postgres` for an example.
 
 ## Share a spec with a link (experimental)
 
-Share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
+By default, share an unlisted gist and print a `diffmap.dev` link (requires [`gh`](https://cli.github.com/) logged in). Does not start a local server:
 
 ```sh
 npx product-doc share .diffmap/specs/<name>/
@@ -163,6 +163,79 @@ npx product-doc share .diffmap/specs/<name>/
 A spec's pages share one gist. Hosted viewer: `https://diffmap.dev/g/<gistId>` for the cover, and `/<slug>` after it for a page (`#heading` is the table of contents). Gists shared before specs were directories still open, one file at a time. The page fetches the gist in the browser from `api.github.com`. Gists are unlisted, not private.
 
 A spec committed to a GitHub pull request also opens at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>`, which pins to the pull request's head commit and opens the spec's cover. Its pages keep their file names in the URL, as in `…/commit/<sha>/.diffmap/specs/<name>/02-write-through.md`, since a pinned commit never renames them.
+
+## Share somewhere else
+
+Set `DIFFMAP_SHARE_CMD` and `share` runs that command instead of creating a gist, so a spec can go to any host you can reach from a shell. Put it in the [config file](#configuration) to set it once. With it unset, `share` runs `share-gist`, which creates the gist above.
+
+```json5
+// ~/.config/diffmap/diffmap.json
+{
+  DIFFMAP_SHARE_CMD: 'upload-html "$DIFFMAP_SHARE_HTML" --name "Diffmap $DIFFMAP_SHARE_REPO/$DIFFMAP_SHARE_BRANCH"',
+}
+```
+
+To publish to a directory a web server already serves, copy the HTML there and print its address:
+
+```sh
+export DIFFMAP_SHARE_CMD='cp "$DIFFMAP_SHARE_HTML" /srv/www/specs/$DIFFMAP_SHARE_ID.html && echo https://docs.example.com/specs/$DIFFMAP_SHARE_ID.html'
+```
+
+### The command's contract
+
+- **How it runs.** Through the shell (`sh -c`, or `cmd.exe /d /s /c` on Windows), from the directory you ran `share` in.
+- **stdin** is the [payload](#the-payload) as JSON, then end of file.
+- **Environment** is `share`'s own, plus:
+
+  | Variable                | Value                                                            |
+  | ----------------------- | ---------------------------------------------------------------- |
+  | `DIFFMAP_SHARE_PAYLOAD` | path to a file holding the same JSON, for tools that take a path |
+  | `DIFFMAP_SHARE_HTML`    | path to the [standalone HTML](#the-standalone-html)              |
+  | `DIFFMAP_SHARE_DIR`     | the temporary directory holding both                             |
+  | `DIFFMAP_SHARE_TITLE`   | the payload's `title`                                            |
+  | `DIFFMAP_SHARE_REPO`    | the payload's `repo`, or empty                                   |
+  | `DIFFMAP_SHARE_BRANCH`  | the payload's `branch`, or empty                                 |
+  | `DIFFMAP_SHARE_ID`      | a new random UUID, for paths that must not collide               |
+
+- **stdout.** The last non-empty line must be an `http` or `https` URL; `share` prints it as `{ url }`. Earlier lines are ignored, so a command can log progress.
+- **stderr** passes through as the command runs.
+- **Failure.** A non-zero exit fails `share` with the exit code and the last line; an exit of 0 whose last line is not a URL fails it with that line.
+- **Cleanup.** `share` deletes `DIFFMAP_SHARE_DIR` when the command exits, so a command that needs the files later must copy them.
+- **`--public`** only means something to the default gist, so it is an error when `DIFFMAP_SHARE_CMD` is set.
+
+### The payload
+
+The payload is a public API. [`schema/share-payload.v1.json`](schema/share-payload.v1.json) is its JSON Schema, and it ships in the package. `schemaVersion` is `1`; fields are only added within a version, so ignore ones you don't know. It holds:
+
+- `diffmapVersion`, `title`, and, when known, `repo` and `branch`.
+- `pages`: each page's `file`, `slug`, `title`, and Markdown `source`.
+- `changes`: a snapshot of every referenced commit and `changes` card, including uncommitted ones. Pass it through unread; its contents change without a `schemaVersion` bump.
+- `files`: the current contents of every file an excerpt or a reference without a commit reads, by path.
+
+### The standalone HTML
+
+`DIFFMAP_SHARE_HTML` is one HTML file holding the viewer, the pages already parsed, the `changes` and `files` snapshots, and the syntax grammars the spec uses. It makes no network requests and uses no WebAssembly, so it opens from disk, from any static host, and inside a sandboxed iframe. Limits that follow from that:
+
+- Comments and reviewed files are kept in memory when the host blocks `localStorage`, so they do not survive a reload.
+- A host that hides the page's address bar fragment cannot link to a single page; the link opens the cover. Opened directly, `#/<slug>` links to a page.
+- Local images and videos still fail `share`; link them by https URL.
+
+## Configuration
+
+`diffmap.json` sets any `DIFFMAP_*` variable the environment leaves unset. It is [JSON5](https://json5.org/), so it allows comments and trailing commas, and every value is a string, as an environment variable is. The environment wins when both set a variable, and a variable set to an empty string counts as set. Keys that do not start with `DIFFMAP_` are ignored with a warning.
+
+| Platform                        | Path                                    |
+| ------------------------------- | --------------------------------------- |
+| Any, with `XDG_CONFIG_HOME` set | `$XDG_CONFIG_HOME/diffmap/diffmap.json` |
+| Windows                         | `%APPDATA%\diffmap\diffmap.json`        |
+| macOS, Linux                    | `~/.config/diffmap/diffmap.json`        |
+
+```json5
+{
+  DIFFMAP_SHARE_CMD: "my-upload-script",
+  DIFFMAP_TELEMETRY: "0",
+}
+```
 
 ## Library
 
@@ -307,7 +380,7 @@ in Amp threads.
 
 `serve` loads media from beside the spec, and a spec on a GitHub pull request
 loads it from the same commit. `share` fails when a spec uses local media,
-because a gist holds only text files; link media by https URL to share it.
+because a share carries text only; link media by https URL to share it.
 
 Run `npx product-doc fixtures/media` for an example.
 
