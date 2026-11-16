@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "product-doc share payload, schemaVersion 1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "diffmapVersion",
+    "title",
+    "pages",
+    "changes",
+    "files"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "diffmapVersion": {
+      "type": "string",
+      "description": "The package version that built the payload."
+    },
+    "title": {
+      "type": "string",
+      "description": "The cover's first heading."
+    },
+    "repo": {
+      "type": "string",
+      "description": "The origin remote's repository name, or the workspace root's directory name. Absent when unknown."
+    },
+    "branch": {
+      "type": "string",
+      "description": "The checked-out branch. Absent when HEAD is detached."
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "slug", "title", "source"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "File name, such as 02-write-through.md. The cover is README.md."
+          },
+          "slug": {
+            "type": "string",
+            "description": "File name without its number, such as write-through. Empty for the cover."
+          },
+          "title": { "type": "string" },
+          "source": {
+            "type": "string",
+            "description": "The page's Markdown."
+          }
+        }
+      }
+    },
+    "changes": {
+      "type": "object",
+      "description": "Opaque snapshot per commit. Pass it through unread; its contents change without a schemaVersion bump."
+    },
+    "files": {
+      "type": "object",
+      "description": "Path to contents of each file an excerpt reads.",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}
