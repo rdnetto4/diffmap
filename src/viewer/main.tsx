@@ -24,6 +24,7 @@ import {
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
 import { setServerConnection } from "./serverConnection.ts";
+import { fetchGrammar, registerGrammarLoaders } from "./grammars.ts";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -86,6 +87,7 @@ const initialLoad = Promise.all([
 ]);
 let shownFile: string | undefined;
 
+registerGrammarLoaders(fetchGrammar);
 enableViewerTelemetry();
 trackViewerEvent({ event: "viewer_opened" });
 

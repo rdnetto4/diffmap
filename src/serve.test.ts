@@ -398,9 +398,22 @@ test(
       // A spec's `onerror` handler or `<script>` has no nonce, so it never runs.
       assert.doesNotMatch(policy, /unsafe-inline|'self'/);
       const page = await response.text();
-      const tags = page.match(/<(script|link rel="modulepreload")[^>]*>/g);
-      assert.ok(tags !== null && tags.length > 1);
+      const tags = [
+        ...page.matchAll(/(<script\b[^>]*>)[\s\S]*?<\/script>/g),
+      ].map((match) => match[1]!);
+      assert.ok(tags.length > 1);
+      // The csp-nonce meta carries it too; the inlined bundle's own `<script` strings never do.
+      assert.equal(page.split(`nonce="${nonce}"`).length - 1, tags.length + 1);
       for (const tag of tags) assert.ok(tag.includes(`nonce="${nonce}"`), tag);
+      // The head tags land in the page's own head, not inside the inlined bundle.
+      const bundle = page.indexOf(
+        '<script nonce="' + nonce + '" type="module">',
+      );
+      const metaAt = page.indexOf('<meta property="csp-nonce"');
+      assert.ok(
+        metaAt !== -1 && metaAt < bundle,
+        "csp-nonce meta is in the head",
+      );
       // Any other response opened as a page, such as an SVG from the repo, runs no script at all.
       const media = await fetch(
         `${server.url}/__diffmap/media?path=../media/after.png`,
@@ -641,3 +654,24 @@ test(
     }
   },
 );
+
+test("serves a grammar by language name and 404s an unknown one", async () => {
+  const server = assertStarted(
+    await startServer({ filePath: sampleSpec, workspaceRoot: packageRoot }),
+  );
+  try {
+    const known = await fetch(
+      `${server.url}/__diffmap/grammar?lang=typescript`,
+    );
+    assert.equal(known.status, 200);
+    const grammar = (await known.json()) as { name: string }[];
+    assert.equal(grammar.at(-1)?.name, "typescript");
+    const alias = await fetch(`${server.url}/__diffmap/grammar?lang=py`);
+    assert.equal(alias.status, 200);
+    const unknown = await fetch(`${server.url}/__diffmap/grammar?lang=nope`);
+    assert.equal(unknown.status, 404);
+  } finally {
+    await server.shutdown();
+    await waitForClosed(server);
+  }
+});

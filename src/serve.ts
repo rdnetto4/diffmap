@@ -133,7 +133,7 @@ export async function startServer(input: StartServerInput) {
   const title = read.spec.title;
   // DIFFMAP_DEV serves the viewer from source through Vite, with hot reload, for working on diffmap itself.
   const dev = process.env.DIFFMAP_DEV === "1";
-  if (!dev && !(await isFile(path.join(viewerDist, "index.html")))) {
+  if (!dev && !(await isFile(path.join(viewerDist, "viewer.html")))) {
     return new DiffmapServeError({
       reason: `the viewer is not built in ${viewerDist}. Run \`npm run build:viewer\`, or set DIFFMAP_DEV=1 to serve it from source`,
     });
@@ -367,7 +367,7 @@ export async function startServer(input: StartServerInput) {
     if (
       get &&
       pathname !== "/" &&
-      pathname !== "/index.html" &&
+      pathname !== "/viewer.html" &&
       asset.startsWith(viewerDist + path.sep) &&
       (await isFile(asset))
     ) {
@@ -381,7 +381,7 @@ export async function startServer(input: StartServerInput) {
     }
     sendIndex(
       res,
-      await fs.readFile(path.join(viewerDist, "index.html"), "utf8"),
+      await fs.readFile(path.join(viewerDist, "viewer.html"), "utf8"),
       title,
       reloadToken,
     );
@@ -624,6 +624,9 @@ async function sendFile(
   pipeline(createReadStream(file, { start, end }), res, noop);
 }
 
+/** Where the page takes extra head tags: `</head>` may also appear inside the inlined bundle. */
+const headMarker = "<!--diffmap-head-->";
+
 function sendIndex(
   res: http.ServerResponse,
   html: string,
@@ -637,21 +640,24 @@ function sendIndex(
   // A spec's HTML is not trusted: only the viewer's own scripts carry the nonce, and 'strict-dynamic' extends it to the code they load, so inline handlers and injected scripts never run.
   res.setHeader(
     "content-security-policy",
-    contentSecurityPolicy(
-      `'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'`,
-    ),
+    contentSecurityPolicy(`'nonce-${nonce}' 'strict-dynamic'`),
   );
   res.end(
     html
-      .replaceAll(
-        "<title>diffmap</title>",
-        `<title>${escapeHtml(title)}</title>`,
-      )
-      .replaceAll(/<(script|link rel="modulepreload")/g, `<$1 nonce="${nonce}"`)
+      // Only the first match, which is the page's own: the inlined bundle may hold these strings too.
       .replace(
-        "</head>",
+        "<title>diffmap</title>",
+        () => `<title>${escapeHtml(title)}</title>`,
+      )
+      // Whole elements only, so `<script` inside the inlined bundle's code stays as it is.
+      .replaceAll(/<script\b[^>]*>[\s\S]*?<\/script>/g, (element) =>
+        element.replace("<script", `<script nonce="${nonce}"`),
+      )
+      .replace(
+        headMarker,
         // Vite's preload helper reads the nonce from this tag for the modules it preloads.
-        `<meta name="diffmap-reload-token" content="${reloadToken}" />\n  <meta property="csp-nonce" nonce="${nonce}" />\n  </head>`,
+        () =>
+          `<link rel="preload" href="/__diffmap/document" as="fetch" crossorigin="anonymous" />\n  <meta name="diffmap-reload-token" content="${reloadToken}" />\n  <meta property="csp-nonce" nonce="${nonce}" />`,
       ),
   );
 }
@@ -872,6 +878,16 @@ async function handleDiffmapRequest(input: {
     );
     return;
   }
+  if (parsed.pathname === "/__diffmap/grammar" && input.method === "GET") {
+    const grammar = await readGrammar(parsed.searchParams.get("lang") ?? "");
+    input.res.statusCode = grammar === undefined ? 404 : 200;
+    input.res.setHeader("content-type", "application/json; charset=utf-8");
+    // A grammar changes only with the installed Shiki.
+    if (grammar !== undefined)
+      input.res.setHeader("cache-control", "private, max-age=86400");
+    input.res.end(grammar === undefined ? "{}" : JSON.stringify(grammar));
+    return;
+  }
   if (parsed.pathname === "/__diffmap/shutdown" && input.method === "POST") {
     input.res.statusCode = 200;
     input.res.setHeader("content-type", "text/plain; charset=utf-8");
@@ -918,6 +934,15 @@ async function handleDiffmapRequest(input: {
   }
   input.res.statusCode = 404;
   input.res.end("not found");
+}
+
+/** The Shiki grammar for a language name or alias, or undefined when Shiki has none. */
+async function readGrammar(lang: string) {
+  const { bundledLanguages } = await import("shiki/langs");
+  if (!Object.prototype.hasOwnProperty.call(bundledLanguages, lang))
+    return undefined;
+  const load = bundledLanguages[lang as keyof typeof bundledLanguages];
+  return (await load()).default;
 }
 
 export type FileExcerpt = {
