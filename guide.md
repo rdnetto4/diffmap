@@ -17,7 +17,14 @@ npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked;
 
 `validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
 
-Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the share, but a reference without a commit only opens the file as it was when shared. The link may be a gist or wherever the user's `DIFFMAP_SHARE_CMD` put the spec; their config decides which. Either way, anyone with the URL may be able to read every file the share snapshots, so share only when asked. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
+Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the share, but a reference without a commit only opens the file as it was when shared.
+
+- `share` publishes where the user configured it: an unlisted gist, or wherever `DIFFMAP_SHARE_CMD` (from their environment or `diffmap.json`) sends it. Don't set, change, or unset it, or run `share-gist` yourself.
+- Pass `--public` only when asked for a public gist; it fails when `DIFFMAP_SHARE_CMD` is set.
+- If `share` fails, report its error and stop. A gist instead could publish somewhere the user did not choose.
+- A `DIFFMAP_SHARE_CMD` share is one standalone HTML file. On a host that sandboxes it, comments may not survive a reload and the link opens the cover rather than a page.
+- Anyone with the URL may be able to read every file the share snapshots, so share only when asked.
+- A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
 
 ## Shape
 
