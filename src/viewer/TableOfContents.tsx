@@ -313,6 +313,7 @@ function TocList(props: TocListProps & { items: TocItem[] }) {
 }
 
 function TocEntry(props: TocListProps & { item: TocItem }) {
+  const spec = useSpec();
   const itemClass = useStyles(styles.item);
   const linkClass = useStyles(styles.link);
   const current = props.activeId === props.item.id;
@@ -340,7 +341,15 @@ function TocEntry(props: TocListProps & { item: TocItem }) {
             event.preventDefault();
             props.onSelect(props.item.id);
             heading.scrollIntoView({ behavior: "smooth", block: "start" });
-            history.pushState({}, "", `#${props.item.id}`);
+            try {
+              history.pushState(
+                {},
+                "",
+                spec?.headingHash?.(props.item.id) ?? `#${props.item.id}`,
+              );
+            } catch {
+              // A sandboxed host may forbid writing the address; the heading is already in view.
+            }
           }}
         >
           {props.item.text}

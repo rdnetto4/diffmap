@@ -8,10 +8,25 @@ import { GistStatus } from "../gist/GistStatus.tsx";
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
 import { fetchGrammar, registerGrammarLoaders } from "./grammars.ts";
+import {
+  embeddedGrammarSource,
+  readEmbeddedContent,
+  readEmbeddedGrammars,
+  specScope,
+} from "./embedded.ts";
+import { scopeStorage } from "./storage.ts";
+import { EmbeddedApp } from "./EmbeddedApp.tsx";
 import "./styles.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("diffmap root element is missing");
+
+const readBlock = (id: string) =>
+  // oxlint-disable-next-line unicorn/no-null -- textContent is null for a missing element.
+  document.getElementById(id)?.textContent ?? null;
+// A `share`d page carries its content and never talks to a server.
+const embedded = readEmbeddedContent(readBlock);
+if (embedded !== undefined) scopeStorage(specScope(embedded));
 
 /** `serve`'s answer for one page, from parseViewerDocument. */
 type PageLoad = {
@@ -49,46 +64,57 @@ function settleUrl(load: PageLoad) {
   }
 }
 
-const [initialPage, initialSpec] = await Promise.all([
-  loadPage(pageSegment()),
-  // SAFETY: `serve` answers with this shape from readSpec.
-  fetch("/__diffmap/spec").then((response) => response.json()) as Promise<
-    Spec | { error: string }
-  >,
-]);
-settleUrl(initialPage);
-let shownFile = initialPage.page?.file;
+const initialLoad =
+  embedded === undefined
+    ? await Promise.all([
+        loadPage(pageSegment()),
+        // SAFETY: `serve` answers with this shape from readSpec.
+        fetch("/__diffmap/spec").then((response) => response.json()) as Promise<
+          Spec | { error: string }
+        >,
+      ])
+    : undefined;
+if (initialLoad !== undefined) settleUrl(initialLoad[0]);
+let shownFile = initialLoad?.[0].page?.file;
 
-registerGrammarLoaders(fetchGrammar);
-enableViewerTelemetry();
-trackViewerEvent({ event: "viewer_opened" });
+registerGrammarLoaders(
+  embedded === undefined
+    ? fetchGrammar
+    : embeddedGrammarSource(readEmbeddedGrammars(readBlock)),
+);
+if (embedded === undefined) {
+  enableViewerTelemetry();
+  trackViewerEvent({ event: "viewer_opened" });
+}
 
 /** A page that stopped parsing after an edit shows the error instead. */
 function trackPageError(load: PageLoad) {
   if (load.viewerDocument === undefined)
     trackViewerEvent({ event: "viewer_error", kind: "document" });
 }
-trackPageError(initialPage);
+if (initialLoad !== undefined) trackPageError(initialLoad[0]);
 
 // `serve` names each page file that changes, or sends `pages` when the list of pages changed.
 const reloadToken =
   document.querySelector<HTMLMetaElement>('meta[name="diffmap-reload-token"]')
     ?.content ?? "";
-const reloadSocket = new WebSocket(
-  `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
-);
-reloadSocket.addEventListener("message", (event) => {
-  if (event.data === "pages" || event.data === shownFile)
-    window.location.reload();
-});
-// Like Vite's client: once the server goes away, reload when one answers on this port again.
-let reloadSocketOpened = false;
-reloadSocket.addEventListener("open", () => {
-  reloadSocketOpened = true;
-});
-reloadSocket.addEventListener("close", () => {
-  if (reloadSocketOpened) setTimeout(reloadWhenServerAnswers, 1000);
-});
+if (embedded === undefined) {
+  const reloadSocket = new WebSocket(
+    `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`,
+  );
+  reloadSocket.addEventListener("message", (event) => {
+    if (event.data === "pages" || event.data === shownFile)
+      window.location.reload();
+  });
+  // Like Vite's client: once the server goes away, reload when one answers on this port again.
+  let reloadSocketOpened = false;
+  reloadSocket.addEventListener("open", () => {
+    reloadSocketOpened = true;
+  });
+  reloadSocket.addEventListener("close", () => {
+    if (reloadSocketOpened) setTimeout(reloadWhenServerAnswers, 1000);
+  });
+}
 
 function reloadWhenServerAnswers() {
   // oxlint-disable-next-line typescript/no-floating-promises -- A timer owns this poll.
@@ -101,9 +127,12 @@ function reloadWhenServerAnswers() {
   );
 }
 
-function LocalApp() {
-  const [load, setLoad] = useState(initialPage);
-  const spec = "error" in initialSpec ? undefined : initialSpec;
+function LocalApp(props: {
+  initialPage: PageLoad;
+  initialSpec: Spec | { error: string };
+}) {
+  const [load, setLoad] = useState(props.initialPage);
+  const spec = "error" in props.initialSpec ? undefined : props.initialSpec;
 
   useEffect(() => {
     // Back and forward load the page the URL names; a jump to a heading on the same page stays put.
@@ -167,7 +196,11 @@ function LocalApp() {
 createRoot(root).render(
   <StrictMode>
     <MauiProvider>
-      <LocalApp />
+      {initialLoad !== undefined ? (
+        <LocalApp initialPage={initialLoad[0]} initialSpec={initialLoad[1]} />
+      ) : (
+        <EmbeddedApp content={embedded} />
+      )}
     </MauiProvider>
   </StrictMode>,
 );

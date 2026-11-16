@@ -137,9 +137,12 @@ export function ViewerApp(props: {
   );
 
   useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    const id =
+      spec?.headingId?.() ??
+      decodeURIComponent(window.location.hash.replace(/^#/, ""));
     if (id === "") return;
     document.getElementById(id)?.scrollIntoView({ block: "start" });
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- Scrolls to the initial hash once.
   }, []);
 
   if (shutDown) {

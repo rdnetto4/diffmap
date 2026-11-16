@@ -1,7 +1,7 @@
 import { registerCustomLanguage } from "@pierre/diffs";
 import languageNames from "virtual:diffmap-languages";
 
-/** Where a viewer gets a Shiki grammar: from `serve`. */
+/** Where a viewer gets a Shiki grammar: embedded in the page, or from `serve`. */
 export type GrammarSource = (language: string) => Promise<unknown>;
 
 export const fetchGrammar: GrammarSource = async (language) => {
