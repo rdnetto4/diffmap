@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { trackViewerEvent } from "./telemetry.ts";
+import { storage } from "./storage.ts";
 
 /** Text the reader highlighted on the page, found again by its quote and surroundings. */
 export type TextAnchor = {
@@ -78,8 +79,8 @@ export function useCommentStore(key: string): CommentStore {
   const [activeId, setActiveId] = useState<string>();
   useEffect(() => {
     try {
-      if (comments.length === 0) localStorage.removeItem(key);
-      else localStorage.setItem(key, JSON.stringify(comments));
+      if (comments.length === 0) storage.removeItem(key);
+      else storage.setItem(key, JSON.stringify(comments));
     } catch (cause) {
       console.warn("diffmap could not save comments", cause);
     }
@@ -120,7 +121,7 @@ export function useCommentStore(key: string): CommentStore {
 
 export function loadComments(key: string): ReviewComment[] {
   try {
-    const saved = localStorage.getItem(key);
+    const saved = storage.getItem(key);
     if (saved === null) return [];
     // SAFETY: only useCommentStore writes this key, with this shape.
     return JSON.parse(saved) as ReviewComment[];

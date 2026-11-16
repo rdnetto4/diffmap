@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangedFile } from "../changes.js";
 import { hashNumber } from "./lineComments.tsx";
+import { storage } from "./storage.ts";
 
 /** Each reviewed file's path, mapped to the hash of the diff the reader reviewed. */
 type ReviewedFiles = Record<string, number>;
@@ -14,8 +15,8 @@ export function useReviewedFiles(key: string) {
   const [reviewed, setReviewed] = useState(() => loadReviewed(key));
   useEffect(() => {
     try {
-      if (Object.keys(reviewed).length === 0) localStorage.removeItem(key);
-      else localStorage.setItem(key, JSON.stringify(reviewed));
+      if (Object.keys(reviewed).length === 0) storage.removeItem(key);
+      else storage.setItem(key, JSON.stringify(reviewed));
     } catch (cause) {
       console.warn("diffmap could not save reviewed files", cause);
     }
@@ -49,7 +50,7 @@ function diffHash(file: ChangedFile) {
 
 function loadReviewed(key: string): ReviewedFiles {
   try {
-    const saved = localStorage.getItem(key);
+    const saved = storage.getItem(key);
     // SAFETY: only useReviewedFiles writes this key, with this shape.
     return saved === null ? {} : (JSON.parse(saved) as ReviewedFiles);
   } catch {

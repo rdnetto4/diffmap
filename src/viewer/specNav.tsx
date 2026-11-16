@@ -24,6 +24,9 @@ export type SpecNav = {
   /** The page's URL path, which also names its saved comments. */
   href: (page: SpecPage) => string;
   navigate: (page: SpecPage, hash: string) => void;
+  /** For a host whose URL names the page too: the hash that points at a heading, and the heading the current hash points at. */
+  headingHash?: (id: string) => string;
+  headingId?: () => string;
 };
 
 export const SpecContext = createContext<SpecNav | undefined>(undefined);

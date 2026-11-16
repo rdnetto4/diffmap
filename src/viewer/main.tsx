@@ -25,10 +25,25 @@ import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
 import { setServerConnection } from "./serverConnection.ts";
 import { fetchGrammar, registerGrammarLoaders } from "./grammars.ts";
+import {
+  embeddedGrammarSource,
+  readEmbeddedContent,
+  readEmbeddedGrammars,
+  specScope,
+} from "./embedded.ts";
+import { scopeStorage } from "./storage.ts";
+import { EmbeddedApp } from "./EmbeddedApp.tsx";
 import "./styles.css";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("diffmap root element is missing");
+
+const readBlock = (id: string) =>
+  // oxlint-disable-next-line unicorn/no-null -- textContent is null for a missing element.
+  document.getElementById(id)?.textContent ?? null;
+// A `share`d page carries its content and never talks to a server.
+const embedded = readEmbeddedContent(readBlock);
+if (embedded !== undefined) scopeStorage(specScope(embedded));
 
 /** `serve`'s answer for one page. */
 type PageLoad = {
@@ -80,16 +95,25 @@ function settleUrl(load: PageLoad) {
   }
 }
 
-const initialLoad = Promise.all([
-  loadPage(pageSegment()),
-  // SAFETY: `serve` answers with this shape from readSpec.
-  loadJson("/__diffmap/spec") as Promise<SpecLoad>,
-]);
+const initialLoad =
+  embedded === undefined
+    ? Promise.all([
+        loadPage(pageSegment()),
+        // SAFETY: `serve` answers with this shape from readSpec.
+        loadJson("/__diffmap/spec") as Promise<SpecLoad>,
+      ])
+    : undefined;
 let shownFile: string | undefined;
 
-registerGrammarLoaders(fetchGrammar);
-enableViewerTelemetry();
-trackViewerEvent({ event: "viewer_opened" });
+registerGrammarLoaders(
+  embedded === undefined
+    ? fetchGrammar
+    : embeddedGrammarSource(readEmbeddedGrammars(readBlock)),
+);
+if (embedded === undefined) {
+  enableViewerTelemetry();
+  trackViewerEvent({ event: "viewer_opened" });
+}
 
 /** A page that stopped parsing after an edit shows the error instead. */
 function trackPageError(load: PageLoad) {
@@ -104,7 +128,7 @@ const reloadToken =
 const reloadUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/__diffmap/events?${new URLSearchParams({ token: reloadToken })}`;
 let reloadSocketEverOpened = false;
 let reconnectDelay = 1000;
-openReloadSocket();
+if (embedded === undefined) openReloadSocket();
 
 // A closed socket does not mean the server restarted: proxies, port forwards, and sleep drop idle sockets while the same server runs.
 // So the page reconnects, and reloads only when the server that answers holds a different token, which a restarted server does.
@@ -167,7 +191,7 @@ function LocalApp() {
   >();
   useEffect(() => {
     // oxlint-disable-next-line typescript/no-floating-promises -- The effect owns this load; it settles once per page load.
-    void initialLoad.then(
+    void initialLoad?.then(
       ([page, spec]) => {
         settleUrl(page);
         shownFile = page.page?.file;
@@ -347,7 +371,11 @@ const styles = {
 createRoot(root).render(
   <StrictMode>
     <MauiProvider>
-      <LocalApp />
+      {embedded === undefined ? (
+        <LocalApp />
+      ) : (
+        <EmbeddedApp content={embedded} />
+      )}
     </MauiProvider>
   </StrictMode>,
 );
