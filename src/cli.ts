@@ -14,6 +14,12 @@ import {
   runUpdate,
 } from "./update.js";
 
+async function readStdin() {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 const serveArgs = z.object({
   file: z
     .string()
@@ -178,6 +184,24 @@ const cli = Cli.create("diffmap", {
         });
       }
       return c.ok(shared);
+    },
+  })
+  .command("share-gist", {
+    description:
+      "Read a share payload on stdin, publish a gist, and print https://diffmap.dev/g/<id>",
+    options: z.object({
+      public: z.boolean().optional().describe("Create a public gist"),
+    }),
+    output: z.string(),
+    async run(c) {
+      const { parseSharePayload, publishGist } = await import("./shareGist.js");
+      const payload = parseSharePayload(await readStdin());
+      if (payload instanceof Error)
+        return c.error({ code: "DIFFMAP", message: payload.message });
+      const published = await publishGist(payload, c.options.public === true);
+      if (published instanceof Error)
+        return c.error({ code: "DIFFMAP", message: published.message });
+      return c.ok(published.viewerUrl);
     },
   })
   .command("guide", {
