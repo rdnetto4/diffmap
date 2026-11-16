@@ -56,7 +56,7 @@ test("the command gets the payload on stdin and in DIFFMAP_SHARE_PAYLOAD, and th
     const command = [
       `cat > ${JSON.stringify(path.join(scratch, "stdin.json"))}`,
       `cp "$DIFFMAP_SHARE_PAYLOAD" ${JSON.stringify(path.join(scratch, "file.json"))}`,
-      `printf '%s\\n' "$DIFFMAP_SHARE_DIR" "$DIFFMAP_SHARE_TITLE" "[$DIFFMAP_SHARE_REPO]" "[$DIFFMAP_SHARE_BRANCH]" "$DIFFMAP_SHARE_ID" "$PWD" > ${JSON.stringify(out)}`,
+      `printf '%s\\n' "$DIFFMAP_SHARE_DIR" "$DIFFMAP_SHARE_HTML" "$DIFFMAP_SHARE_TITLE" "[$DIFFMAP_SHARE_REPO]" "[$DIFFMAP_SHARE_BRANCH]" "$DIFFMAP_SHARE_ID" "$PWD" > ${JSON.stringify(out)}`,
       "echo progress",
       "echo https://example.com/shared",
       "echo",
@@ -71,9 +71,12 @@ test("the command gets the payload on stdin and in DIFFMAP_SHARE_PAYLOAD, and th
       stdin,
     );
     assert.equal(JSON.parse(stdin).title, "Cover");
-    const [, title, repo, branch, id, cwd] = (await fs.readFile(out, "utf8"))
+    const [shareDir, html, title, repo, branch, id, cwd] = (
+      await fs.readFile(out, "utf8")
+    )
       .trimEnd()
       .split("\n");
+    assert.equal(html, path.join(shareDir!, "share.html"));
     assert.equal(title, "Cover");
     assert.equal(repo, `[${path.basename(scratch)}]`);
     assert.equal(branch, "[]");
@@ -165,5 +168,24 @@ test("an unset DIFFMAP_SHARE_CMD runs share-gist, and --public reaches it", asyn
       await fs.readFile(log, "utf8"),
       /^gist create --public --desc Cover \S+README\.md\n$/,
     );
+  });
+});
+
+test("DIFFMAP_SHARE_HTML is a written standalone page holding the spec, by the time the command runs", async () => {
+  await withSpec(async (dir, scratch) => {
+    const copy = path.join(scratch, "copy.html");
+    await withEnv(
+      {
+        DIFFMAP_SHARE_CMD: `cp "$DIFFMAP_SHARE_HTML" ${JSON.stringify(copy)}; echo https://example.com/x`,
+      },
+      async () => {
+        assert.deepEqual(await share(dir, scratch), {
+          url: "https://example.com/x",
+        });
+      },
+    );
+    const html = await fs.readFile(copy, "utf8");
+    assert.match(html, /id="diffmap-document"/);
+    assert.match(html, /Cover/);
   });
 });

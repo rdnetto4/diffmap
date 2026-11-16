@@ -78,7 +78,7 @@ const PING_FRAME = Buffer.from([0x89, 0x00]);
 
 const packageRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 /** Written by `npm run build:viewer`; published with the package. */
-const viewerDist = path.join(packageRoot, "viewer-dist");
+export const viewerDist = path.join(packageRoot, "viewer-dist");
 
 function noop() {}
 
@@ -625,7 +625,7 @@ async function sendFile(
 }
 
 /** Where the page takes extra head tags: `</head>` may also appear inside the inlined bundle. */
-const headMarker = "<!--diffmap-head-->";
+export const headMarker = "<!--diffmap-head-->";
 
 function sendIndex(
   res: http.ServerResponse,
@@ -937,7 +937,7 @@ async function handleDiffmapRequest(input: {
 }
 
 /** The Shiki grammar for a language name or alias, or undefined when Shiki has none. */
-async function readGrammar(lang: string) {
+export async function readGrammar(lang: string) {
   const { bundledLanguages } = await import("shiki/langs");
   if (!Object.prototype.hasOwnProperty.call(bundledLanguages, lang))
     return undefined;
