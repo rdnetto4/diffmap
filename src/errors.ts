@@ -55,6 +55,11 @@ export class DiffmapDefinitionError extends errore.createTaggedError({
   message: "$reason",
 }) {}
 
+export class DiffmapConfigError extends errore.createTaggedError({
+  name: "DiffmapConfigError",
+  message: "product-doc could not read its config file $path: $reason",
+}) {}
+
 export class DiffmapShareError extends errore.createTaggedError({
   name: "DiffmapShareError",
   message: "diffmap share failed: $reason",
