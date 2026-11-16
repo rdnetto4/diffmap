@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { gistAppConfig } from "./vite.gist.config.ts";
+import { languageNames } from "./vite.viewer.config.ts";
 
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +31,7 @@ export default defineConfig(({ command }) => {
         "errore",
       ],
     },
-    plugins: [react()],
+    plugins: [react(), languageNames()],
     resolve: {
       dedupe: ["react", "react-dom", "purse-styles"],
     },

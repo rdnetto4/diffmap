@@ -7,6 +7,7 @@ import { ViewerApp } from "./ViewerApp.tsx";
 import { GistStatus } from "../gist/GistStatus.tsx";
 import { localMediaUrl, MediaResolverContext } from "./Media.tsx";
 import { enableViewerTelemetry, trackViewerEvent } from "./telemetry.ts";
+import { fetchGrammar, registerGrammarLoaders } from "./grammars.ts";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -58,6 +59,7 @@ const [initialPage, initialSpec] = await Promise.all([
 settleUrl(initialPage);
 let shownFile = initialPage.page?.file;
 
+registerGrammarLoaders(fetchGrammar);
 enableViewerTelemetry();
 trackViewerEvent({ event: "viewer_opened" });
 
