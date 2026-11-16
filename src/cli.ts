@@ -105,7 +105,7 @@ const cli = Cli.create("diffmap", {
   args: serveArgs,
   options: serveOptions,
   output: serveOutput,
-  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist. `update` (or `--update`) installs the latest diffmap.",
+  hint: "`guide` prints how to write a spec. A spec is a directory of Markdown pages, such as `.diffmap/specs/<name>/`. `validate <spec>` checks it without starting a server. `serve <spec>` runs the local viewer. `share <spec>` publishes an unlisted gist, or runs `DIFFMAP_SHARE_CMD` if set. `update` (or `--update`) installs the latest diffmap.",
   examples: [
     {
       args: { file: ".diffmap/specs/sessions/" },
@@ -153,16 +153,12 @@ const cli = Cli.create("diffmap", {
   })
   .command("share", {
     description:
-      "Publish an unlisted gist and print https://diffmap.dev/g/<id>",
+      "Publish through DIFFMAP_SHARE_CMD (default: an unlisted gist) and print the URL",
     args: serveArgs,
     options: z.object({
       public: z.boolean().optional().describe("Create a public gist"),
     }),
-    output: z.object({
-      gistId: z.string(),
-      gistUrl: z.string(),
-      viewerUrl: z.string(),
-    }),
+    output: z.object({ url: z.string() }),
     examples: [
       {
         args: { file: ".diffmap/specs/sessions/" },
@@ -170,8 +166,11 @@ const cli = Cli.create("diffmap", {
       },
     ],
     async run(c) {
-      trackCommand("share");
-      const { shareMarkdownFile } = await import("./share.js");
+      const { customShareCommand, shareMarkdownFile } =
+        await import("./share.js");
+      trackCommand("share", {
+        custom_command: customShareCommand() !== undefined,
+      });
       const shared = await shareMarkdownFile({
         filePath: resolveFromInvokeCwd(c.args.file),
         workspaceRoot: resolveFromInvokeCwd("."),

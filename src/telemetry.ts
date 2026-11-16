@@ -20,8 +20,11 @@ export function exitAfterTelemetry(code: number) {
 }
 
 /** Sends one anonymous `command_run` event without delaying the command. */
-export function trackCommand(command: string) {
-  track("command_run", { command });
+export function trackCommand(
+  command: string,
+  properties: Record<string, string | number | boolean> = {},
+) {
+  track("command_run", { command, ...properties });
 }
 
 /** Sends one anonymous event without delaying the command; properties must never hold paths or spec contents. */

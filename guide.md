@@ -12,12 +12,12 @@ Run from the repo root:
 npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
 npx @tanishqkancharla/diffmap list                            # reuse the URL if this spec is already served
 npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
-npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints https://diffmap.dev/g/<id>
+npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints the link to open
 ```
 
 `validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
 
-Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the gist, but a reference without a commit only opens the file as it was when shared. A shared gist is unlisted: anyone with the URL can read it, including every file it snapshots. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
+Leave the server running and give the user the directory and URL. It reloads a page when you edit it, and the page list when you add, remove, or retitle a page. Open the browser only when asked. Before sharing, commit finished work and point its references at the commit, as in [When a phase is complete](#when-a-phase-is-complete): `share` saves each referenced commit's diff into the share, but a reference without a commit only opens the file as it was when shared. The link may be a gist or wherever the user's `DIFFMAP_SHARE_CMD` put the spec; their config decides which. Either way, anyone with the URL may be able to read every file the share snapshots, so share only when asked. A spec on a pull request is also at `https://diffmap.dev/<owner>/<repo>/pull/<n>/.diffmap/specs/<name>/`, pinned to a commit.
 
 ## Shape
 
@@ -208,7 +208,7 @@ Paths are relative to the repo root.
 - `[[path/to/file.ts#symbolName]]` links a TypeScript or JavaScript declaration; qualify ambiguous ones, as in `[[src/store.ts#Store.save]]`.
 - `[[path]]` links a file; `[[path#L12-L30]]` a line range.
 - `[[<sha>:path#L12-L30]]` links lines in a commit, or `<base>..<head>` for a phase over several commits, where `<base>` is the commit before the first. Lines are numbered after the commit, so deleted lines cannot be linked. Find them with `git show <sha> -- <path>` and `git show <sha>:<path> | nl -ba`.
-- A reference without a commit opens that file's uncommitted changes, or the current file when it has none. A shared gist opens the file as it was when shared.
+- A reference without a commit opens that file's uncommitted changes, or the current file when it has none. A shared spec opens the file as it was when shared.
 - In prose, references render as clickable inline code; wrap one in backticks to show the syntax.
 - In Mermaid, `%% ref node:<id> [[reference]]` links a node or participant and `%% ref edge:<index> [[reference]]` an edge or message, counting from zero in declaration order. Use one directive per target, with several references when needed.
 
