@@ -9,10 +9,10 @@ A spec is a directory at `.diffmap/specs/<short-kebab-case-name>/` that shows th
 Run from the repo root:
 
 ```sh
-npx @tanishqkancharla/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
-npx @tanishqkancharla/diffmap list                            # reuse the URL if this spec is already served
-npx @tanishqkancharla/diffmap serve .diffmap/specs/<name>/
-npx @tanishqkancharla/diffmap share .diffmap/specs/<name>/    # only when asked; prints the link to open
+npx -y @rdnetto4/diffmap validate .diffmap/specs/<name>/ # check after writing or editing, even if already served
+npx -y @rdnetto4/diffmap list                            # reuse the URL if this spec is already served
+npx -y @rdnetto4/diffmap serve .diffmap/specs/<name>/
+npx -y @rdnetto4/diffmap share .diffmap/specs/<name>/    # only when asked; prints the link to open
 ```
 
 `validate` checks every page's syntax, diagrams, and annotations, and the spec's page names, without starting a server; it does not resolve source files or Git commits. Fix validation errors before handing back the viewer. After updating diffmap itself, restart existing viewers to load its new parser.
@@ -230,7 +230,7 @@ gh issue list --repo tanishqkancharla/diffmap --search "<keywords>" --state all
 gh issue create --repo tanishqkancharla/diffmap --title "<short summary>" --body "<details>"
 ```
 
-Say what you did, what you expected, and what happened, with the diffmap version (`npx @tanishqkancharla/diffmap --version`) and the smallest Markdown that shows the problem. Issues are public, so leave out private code, file contents, paths, and gist links unless the user agrees. Give the user the issue URL.
+Say what you did, what you expected, and what happened, with the diffmap version (`npx -y @rdnetto4/diffmap --version`) and the smallest Markdown that shows the problem. Issues are public, so leave out private code, file contents, paths, and gist links unless the user agrees. Give the user the issue URL.
 
 ## Look up the rest
 
